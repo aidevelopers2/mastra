@@ -1,19 +1,20 @@
 /**
  * AIMock Scenario: RequestContext Mutation Behavior
  *
- * Documents that requestContext mutations made by tools do NOT persist
- * between tool executions within the same agent run. Each tool execution
- * receives a fresh copy of the original requestContext passed to agent.stream().
+ * Documents requestContext mutation visibility between tool executions. Direct
+ * engines share the original requestContext instance across the run. The evented
+ * engine reconstructs requestContext from serialized workflow state between
+ * steps, so tool-local mutations do not update the original instance.
  *
  * This is important behavior to document because it means:
- * - Tools cannot use requestContext to share state with each other
- * - Mutations are local to each tool execution
- * - The original requestContext remains unchanged throughout the run
+ * - Direct engines can use requestContext to share state between tools
+ * - Evented execution keeps tool mutations local to each workflow step
+ * - The original requestContext mutation behavior is engine-specific
  *
  * Asserts:
- * - Tool mutations do not persist to subsequent tool calls
- * - Each tool sees the original requestContext values
- * - The original requestContext object is not mutated
+ * - Direct-engine tool mutations persist to subsequent tool calls
+ * - Evented-engine tool mutations do not persist to subsequent tool calls
+ * - The original requestContext object follows the engine-specific behavior
  */
 
 import { stepCountIs } from '@internal/ai-sdk-v5';
@@ -26,7 +27,7 @@ import { runLoopScenario, useLoopScenarioAimock, describeForAllEngines } from '.
 describeForAllEngines('AIMock loop scenario: requestContext mutation behavior', engine => {
   const getMock = useLoopScenarioAimock();
 
-  it('tool mutations do not persist to subsequent tool calls', async () => {
+  it('documents tool mutation visibility for subsequent tool calls', async () => {
     const step1Values: string[] = [];
     const step2Values: string[] = [];
 
@@ -40,7 +41,7 @@ describeForAllEngines('AIMock loop scenario: requestContext mutation behavior', 
         const before = (context?.requestContext?.get('counter') || 'none') as string;
         step1Values.push(before);
 
-        // Attempt to mutate the context (this will NOT persist)
+        // Mutate the shared context for later tool calls in this run.
         context?.requestContext?.set('counter', input.value);
 
         return { success: true };
@@ -87,7 +88,7 @@ describeForAllEngines('AIMock loop scenario: requestContext mutation behavior', 
         // Turn 3: summarize (has tool result from read)
         llm.on(
           { endpoint: 'chat', toolCallId: 'call_read' },
-          { content: 'The counter remains initial because mutations do not persist.' },
+          { content: 'The counter changed because requestContext mutations persist.' },
         );
       },
     });
@@ -95,17 +96,19 @@ describeForAllEngines('AIMock loop scenario: requestContext mutation behavior', 
     // Step 1: mutate tool saw the initial value
     expect(step1Values).toEqual(['initial']);
 
-    // Step 2: read tool STILL sees the initial value (mutation did NOT persist)
-    expect(step2Values).toEqual(['initial']);
+    const mutationsPersist = engine !== 'evented';
 
-    // The original requestContext object was not mutated
-    expect(requestContext.get('counter')).toBe('initial');
+    // Direct engines share the tool mutation; evented reconstructs context.
+    expect(step2Values).toEqual([mutationsPersist ? 'step1-value' : 'initial']);
+
+    // The original requestContext object follows the same engine behavior.
+    expect(requestContext.get('counter')).toBe(mutationsPersist ? 'step1-value' : 'initial');
 
     // All three turns executed
     expect(requests).toHaveLength(3);
   });
 
-  it('each sequential tool call sees the original requestContext', async () => {
+  it('documents sequential requestContext mutation behavior', async () => {
     const mutations: string[] = [];
 
     const incrementTool = createTool({
@@ -151,16 +154,20 @@ describeForAllEngines('AIMock loop scenario: requestContext mutation behavior', 
         // Turn 4: summarize (has tool result from call_inc_3)
         llm.on(
           { endpoint: 'chat', toolCallId: 'call_inc_3' },
-          { content: 'Each increment started from 0 because mutations do not persist.' },
+          { content: 'Each increment used the latest shared requestContext value.' },
         );
       },
     });
 
-    // Each call saw the original value (0) and tried to increment to 1
-    // Mutations did NOT accumulate across calls
-    expect(mutations).toEqual(['saw:0,set:1', 'saw:0,set:1', 'saw:0,set:1']);
+    const mutationsPersist = engine !== 'evented';
 
-    // The original requestContext remains unchanged
-    expect(requestContext.get('count')).toBe('0');
+    // Direct engines accumulate mutations; evented reconstructs context for
+    // each workflow step from the original serialized values.
+    expect(mutations).toEqual(
+      mutationsPersist ? ['saw:0,set:1', 'saw:1,set:2', 'saw:2,set:3'] : ['saw:0,set:1', 'saw:0,set:1', 'saw:0,set:1'],
+    );
+
+    // The original requestContext follows the same engine behavior.
+    expect(requestContext.get('count')).toBe(mutationsPersist ? '3' : '0');
   });
 });

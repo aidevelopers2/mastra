@@ -293,7 +293,7 @@ Tools support lifecycle hooks and streaming output:
 | `empty-turn.scenario.test.ts`                           | model returns text immediately without tool calls; loop completes in single request; handles empty string responses gracefully                                                                                                                                                                                               |
 | `abort-structured-output.scenario.test.ts`              | abort signal during structured output streaming; handles partial JSON gracefully; completes successfully when abort not triggered                                                                                                                                                                                            |
 | `request-context-isolation.scenario.test.ts`            | requestContext preserved across multiple tool execution steps; not mutated between steps; same context in parallel tool execution                                                                                                                                                                                            |
-| `request-context-mutation.scenario.test.ts`             | tool mutations to requestContext do NOT persist to subsequent tool calls; each tool execution sees the original requestContext values; documents that requestContext is not a shared mutable state between tools                                                                                                             |
+| `request-context-mutation.scenario.test.ts`             | requestContext mutation visibility across tool calls; direct engines share mutations through the original instance, while evented execution reconstructs requestContext between workflow steps                                                                                                                               |
 | `on-error-callback.scenario.test.ts`                    | `onError` callback fires for API errors but not tool execution errors (tool errors are sent back to model for self-correction); interaction with `errorProcessors`                                                                                                                                                           |
 | `maxsteps-long-chains.scenario.test.ts`                 | `maxSteps` caps long tool chains; `stopWhen` and `maxSteps` can both bound execution; model can finish naturally before either limit                                                                                                                                                                                         |
 | `structured-output-error-strategy.scenario.test.ts`     | `errorStrategy: 'strict'` emits error chunk on validation failure; `errorStrategy: 'fallback'` returns fallbackValue; `errorStrategy: 'warn'` logs warning without emitting error chunk; valid output succeeds with strict strategy                                                                                          |
@@ -381,7 +381,8 @@ in tool `execute` functions via `context.requestContext`. This allows tools to a
 per-request state like user IDs, session info, or feature flags.
 
 - Use `new RequestContext()` and `.set(key, value)` to populate.
-- All tools in the same run receive the same requestContext instance.
+- Direct engines pass the same requestContext instance to tools in the same run, so mutations are visible to later tool executions.
+- Evented execution serializes and reconstructs requestContext between workflow steps, so tool-local mutations do not update the original instance.
 
 ## Model settings & provider options
 
