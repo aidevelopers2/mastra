@@ -641,6 +641,7 @@ export class Mastra<
   #server?: ServerConfig;
   #serverExplicit = false;
   #studio?: StudioConfig;
+  #studioExplicit = false;
   #serverAdapter?: MastraServerBase;
   #mcpServers?: TMCPServers;
   #bundler?: BundlerConfig;
@@ -1511,6 +1512,7 @@ export class Mastra<
 
     if (config?.studio) {
       this.#studio = config.studio;
+      this.#studioExplicit = true;
     }
 
     // Register channels and merge their routes into server config
@@ -2444,6 +2446,29 @@ export class Mastra<
     }
 
     this.setServer(fsServer);
+  }
+
+  /**
+   * Registers a file-system routed studio config (discovered from
+   * `studio.ts`) into this Mastra instance.
+   *
+   * Code-registered studio config wins on collision.
+   *
+   * @internal
+   */
+  public __registerFsStudio(fsStudio: StudioConfig): void {
+    if (!fsStudio) {
+      return;
+    }
+
+    if (this.#studioExplicit) {
+      this.getLogger().warn(
+        `File-system routed studio config conflicts with a code-registered studio config. Keeping the code-registered studio config.`,
+      );
+      return;
+    }
+
+    this.setStudio(fsStudio);
   }
 
   /**
