@@ -1,5 +1,25 @@
 # mastracode
 
+## 0.29.0-alpha.1
+
+### Minor Changes
+
+- Run the MastraCode web server through the Mastra CLI so `mastra dev`, `mastra build`, `mastra deploy`, and `mastra start` all serve the same API surface from `src/mastra/index.ts`. The separate hand-wired local server was removed, and the web UI is now hosted separately and talks to the API cross-origin. ([#18741](https://github.com/mastra-ai/mastra/pull/18741))
+
+### Patch Changes
+
+- Improved MastraCode web syntax highlighting, switched the web UI to the shared Playground UI stylesheet, restored React Query-backed sidebar auth actions, reorganized the web UI internals into reusable UI and domain folders, added a React Query-backed Workspaces sidebar section for GitHub project worktrees, moved project/repository data loading onto React Query-backed domain hooks, and consolidated global keydown listeners behind a shared `useKeyDown` hook. ([#18851](https://github.com/mastra-ai/mastra/pull/18851))
+
+- Updated dependencies [[`1d606ff`](https://github.com/mastra-ai/mastra/commit/1d606ff3570179d9ed43c90e8c2bf8d011e97bea), [`5ea76a7`](https://github.com/mastra-ai/mastra/commit/5ea76a723d966c72da9aa3ab30ae20276e049765), [`6445560`](https://github.com/mastra-ai/mastra/commit/6445560327045d20b239585fc63fed72e9ce36ec), [`911281c`](https://github.com/mastra-ai/mastra/commit/911281c57893ba2630428bf88d0cd0c5101ce76f), [`ae51e81`](https://github.com/mastra-ai/mastra/commit/ae51e818825582d42500338dfc1929a082eff0ba), [`6f304ef`](https://github.com/mastra-ai/mastra/commit/6f304ef319e99725e884bdb8d3193c001b6e5964)]:
+  - @mastra/playground-ui@39.0.1-alpha.1
+  - @mastra/core@1.50.0-alpha.1
+  - @mastra/observability@1.16.0-alpha.0
+  - @mastra/mcp@1.13.1-alpha.0
+  - @mastra/client-js@1.30.1-alpha.1
+  - @mastra/hono@1.5.5-alpha.1
+  - @mastra/react@1.2.3-alpha.1
+  - @mastra/server@1.50.0-alpha.1
+
 ## 0.28.1-alpha.0
 
 ### Patch Changes
