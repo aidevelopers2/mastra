@@ -143,10 +143,15 @@ async function emitAgentEntry(
 export async function generateFsAgentsModule(
   userEntry: string,
   agents: DiscoveredFsAgent[],
-  options?: { workflows?: DiscoveredFsWorkflow[]; storage?: DiscoveredFsSingleton },
+  options?: {
+    workflows?: DiscoveredFsWorkflow[];
+    storage?: DiscoveredFsSingleton;
+    observability?: DiscoveredFsSingleton;
+  },
 ): Promise<string> {
   const workflows = options?.workflows ?? [];
   const storage = options?.storage;
+  const observability = options?.observability;
   const lines: string[] = [];
 
   const hasInlineSkills = (function check(list: DiscoveredFsAgent[]): boolean {
@@ -170,9 +175,16 @@ export async function generateFsAgentsModule(
   lines.push(`const __workspaceBasePath = name => __join(__bundleDir, 'workspace', ...name.split('/'));`);
   lines.push(``);
 
-  // Singleton imports (storage.ts, etc.).
+  // Singleton imports (storage.ts, observability.ts, etc.).
+  const singletonImports: string[] = [];
   if (storage) {
-    lines.push(`import __fsStorage from ${JSON.stringify(storage.path)};`);
+    singletonImports.push(`import __fsStorage from ${JSON.stringify(storage.path)};`);
+  }
+  if (observability) {
+    singletonImports.push(`import __fsObservability from ${JSON.stringify(observability.path)};`);
+  }
+  if (singletonImports.length > 0) {
+    lines.push(...singletonImports);
     lines.push(``);
   }
 
@@ -219,11 +231,18 @@ export async function generateFsAgentsModule(
     }
   }
 
-  // Singleton registration (storage, etc.).
+  // Singleton registration (storage, observability, etc.).
   if (storage) {
     lines.push(``);
     lines.push(`if (__userEntry.mastra && typeof __userEntry.mastra.__registerFsStorage === 'function') {`);
     lines.push(`  __userEntry.mastra.__registerFsStorage(__fsStorage);`);
+    lines.push(`}`);
+  }
+
+  if (observability) {
+    lines.push(``);
+    lines.push(`if (__userEntry.mastra && typeof __userEntry.mastra.__registerFsObservability === 'function') {`);
+    lines.push(`  __userEntry.mastra.__registerFsObservability(__fsObservability);`);
     lines.push(`}`);
   }
 
